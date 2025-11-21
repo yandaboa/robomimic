@@ -38,6 +38,7 @@ import robomimic.utils.obs_utils as ObsUtils
 import robomimic.utils.env_utils as EnvUtils
 import robomimic.utils.file_utils as FileUtils
 from robomimic.config import config_factory
+import robomimic.config  # ensure all config classes are registered
 from robomimic.algo import algo_factory, RolloutPolicy
 from robomimic.utils.log_utils import PrintLogger, DataLogger, flush_warnings
 
@@ -195,7 +196,8 @@ def train(config, device, resume=False):
             batch_size=config.train.batch_size,
             shuffle=(valid_sampler is None),
             num_workers=num_workers,
-            drop_last=True
+            drop_last=True,
+            collate_fn=TorchUtils.collate_fn if config.algo_name == "dit_policy" else None
         )
     else:
         valid_loader = None

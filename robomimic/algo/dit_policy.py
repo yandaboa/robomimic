@@ -288,12 +288,17 @@ class DiTPolicyUNet(PolicyAlgo):
                 noise_pred = self.nets["policy"]["noise_pred_net"](
                     noisy_actions, timesteps, global_cond=obs_cond) # [B*T, Tp, Da]
             
+            if "loss_mask" in batch:
+                loss_mask = batch["loss_mask"]
+            else:
+                loss_mask = attention_mask
+            
             # L2 loss
             loss = F.mse_loss(noise_pred, noise, reduction="none") # [B*T, Tp, Da]
             loss = loss.mean(dim=-1)  # [B*T, Tp]
             loss = loss.mean(dim=-1)  # [B*T]
-            loss = loss * attention_mask.reshape(B*T)  # [B*T]
-            loss = loss.sum() / attention_mask.sum()  # scalar
+            loss = loss * loss_mask.reshape(B*T)  # [B*T]
+            loss = loss.sum() / loss_mask.sum()  # scalar
             
             # logging
             losses = {
@@ -378,7 +383,73 @@ class DiTPolicyUNet(PolicyAlgo):
         # [1,Da]
         action = action.unsqueeze(0)
         return action
+    
+    def get_isaac_formatted_action(self, num_actions, obs_dict, env_t):
+        # obs: dict, {key: torch.Tensor of shape [B, T, Do]}
+        # num_actions: int
+        # env_t: torch.Tensor of shape [B], the time step of each environment
+        assert num_actions <= self.algo_config.horizon.prediction_horizon, "num_actions must be less than or equal to the prediction horizon"
+        Tp = self.algo_config.horizon.prediction_horizon
+        action_dim = self.ac_dim
+        if self.algo_config.ddpm.enabled is True:
+            num_inference_timesteps = self.algo_config.ddpm.num_inference_timesteps
+        elif self.algo_config.ddim.enabled is True:
+            num_inference_timesteps = self.algo_config.ddim.num_inference_timesteps
+        else:
+            raise ValueError
         
+        # select network
+        nets = self.nets
+        if self.ema is not None:
+            nets = self.ema.averaged_model
+
+        obs_features = TensorUtils.time_distributed(obs_dict, nets["policy"]["obs_encoder"], inputs_as_kwargs=True)
+        assert obs_features.ndim == 3  # [B, T, D]
+        B = obs_features.shape[0]
+
+        # pass through projection layer
+        obs_features = nets["policy"]["projection_layer"](obs_features)
+        assert obs_features.ndim == 3  # [B, T, D]
+
+        # pass through transformer
+        attention_mask = torch.arange(obs_features.shape[1], device=obs_features.device).unsqueeze(0) <= env_t.unsqueeze(1) # [B, T]
+        transformer_outputs = nets["policy"]["transformer_encoder"](
+            inputs_embeds=obs_features,
+            attention_mask=attention_mask
+        )
+        transformer_features = transformer_outputs.last_hidden_state  # [B, T, D]
+        assert transformer_features.ndim == 3  # [B, T, D]
+
+        obs_cond = transformer_features[torch.arange(B, device=transformer_features.device), env_t, :]  # [B, D]
+        assert obs_cond.ndim == 2  # [B, D]
+
+        # initialize action from Guassian noise
+        noisy_action = torch.randn(
+            (B, Tp, action_dim), device=self.device)
+        naction = noisy_action
+        
+        # init scheduler
+        self.noise_scheduler.set_timesteps(num_inference_timesteps)
+
+        for k in self.noise_scheduler.timesteps:
+            # predict noise
+            noise_pred = nets["policy"]["noise_pred_net"](
+                sample=naction, 
+                timestep=k,
+                global_cond=obs_cond
+            )
+
+            # inverse diffusion step (remove noise)
+            naction = self.noise_scheduler.step(
+                model_output=noise_pred,
+                timestep=k,
+                sample=naction
+            ).prev_sample
+
+        # process action using Ta
+        action = naction[:,:num_actions] # [B, num_actions, Da]
+        return action
+
     def _get_action_trajectory(self):
         assert not self.nets.training
         # To = self.algo_config.horizon.observation_horizon

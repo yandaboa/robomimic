@@ -35,6 +35,10 @@ class PrintLogger(object):
     def flush(self):
         # ensure stdout gets flushed
         self.terminal.flush()
+    
+    def isatty(self):
+        # delegate to underlying terminal for TTY detection (needed by wandb)
+        return self.terminal.isatty()
 
 
 class DataLogger(object):
