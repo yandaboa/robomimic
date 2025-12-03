@@ -80,6 +80,7 @@ class DataLogger(object):
 
                     self._wandb_logger.init(
                         entity=Macros.WANDB_ENTITY,
+                        config=config,
                         project=config.experiment.logging.wandb_proj_name,
                         name=config.experiment.name,
                         dir=log_dir,

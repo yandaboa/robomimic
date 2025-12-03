@@ -68,7 +68,7 @@
         "goal_mode": null,
         "cuda": true,
         "batch_size": 64,
-        "num_epochs": 1500,
+        "num_epochs": 500,
         "seed": 1,
         "max_grad_norm": null
     },
@@ -92,7 +92,7 @@
         },
         "horizon": {
             "observation_horizon": 1,
-            "action_horizon": 2,
+            "action_horizon": 4,
             "prediction_horizon": 8
         },
         "unet": {
@@ -111,7 +111,7 @@
             "power": 0.75
         },
         "ddpm": {
-            "enabled": true,
+            "enabled": false,
             "num_train_timesteps": 100,
             "num_inference_timesteps": 100,
             "beta_schedule": "squaredcos_cap_v2",
@@ -119,7 +119,7 @@
             "prediction_type": "epsilon"
         },
         "ddim": {
-            "enabled": false,
+            "enabled": true,
             "num_train_timesteps": 100,
             "num_inference_timesteps": 10,
             "beta_schedule": "squaredcos_cap_v2",
@@ -131,12 +131,12 @@
         "transformer": {
             "enabled": true,
             "context_length": 10,
-            "embed_dim": 512,
-            "num_layers": 6,
-            "num_heads": 8,
-            "emb_dropout": 0.0,
-            "attn_dropout": 0.0,
-            "block_output_dropout": 0.0
+            "embed_dim": 256,
+            "num_layers": 4,
+            "num_heads": 4,
+            "emb_dropout": 0.1,
+            "attn_dropout": 0.1,
+            "block_output_dropout": 0.1
         }
     },
     "observation": {
@@ -148,8 +148,7 @@
                     "3prev_dones",
                     "4current_state"
                 ],
-                "rgb": [
-                ],
+                "rgb": [],
                 "depth": [],
                 "scan": []
             },

@@ -1,7 +1,7 @@
 {
     "algo_name": "dit_policy",
     "experiment": {
-        "name": "best_of_n_swap_more_ID",
+        "name": "best_of_n_sorted_more_ID_shorter_context",
         "validate": true,
         "logging": {
             "terminal_output_to_txt": true,
@@ -41,14 +41,14 @@
         "data": null,
         "output_dir": "../dit_policy_trained_models",
         "normalize_weights_by_ds_size": false,
-        "num_data_workers": 8,
+        "num_data_workers": 32,
         "hdf5_cache_mode": "all",
         "hdf5_use_swmr": true,
         "hdf5_load_next_obs": false,
         "hdf5_normalize_obs": false,
         "hdf5_filter_key": "train",
         "hdf5_validation_filter_key": "val",
-        "seq_length": 600,
+        "seq_length": 300,
         "pad_seq_length": false,
         "frame_stack": 1,
         "pad_frame_stack": false,
@@ -69,7 +69,7 @@
         "goal_mode": null,
         "cuda": true,
         "batch_size": 64,
-        "num_epochs": 1500,
+        "num_epochs": 500,
         "seed": 1,
         "max_grad_norm": null
     },
@@ -93,7 +93,7 @@
         },
         "horizon": {
             "observation_horizon": 1,
-            "action_horizon": 2,
+            "action_horizon": 4,
             "prediction_horizon": 8
         },
         "unet": {
@@ -112,7 +112,7 @@
             "power": 0.75
         },
         "ddpm": {
-            "enabled": true,
+            "enabled": false,
             "num_train_timesteps": 100,
             "num_inference_timesteps": 100,
             "beta_schedule": "squaredcos_cap_v2",
@@ -120,7 +120,7 @@
             "prediction_type": "epsilon"
         },
         "ddim": {
-            "enabled": false,
+            "enabled": true,
             "num_train_timesteps": 100,
             "num_inference_timesteps": 10,
             "beta_schedule": "squaredcos_cap_v2",
@@ -131,13 +131,13 @@
         },
         "transformer": {
             "enabled": true,
-            "context_length": 600,
-            "embed_dim": 512,
-            "num_layers": 6,
-            "num_heads": 8,
-            "emb_dropout": 0.0,
-            "attn_dropout": 0.0,
-            "block_output_dropout": 0.0
+            "context_length": 300,
+            "embed_dim": 256,
+            "num_layers": 4,
+            "num_heads": 4,
+            "emb_dropout": 0.1,
+            "attn_dropout": 0.1,
+            "block_output_dropout": 0.1
         }
     },
     "observation": {
@@ -149,8 +149,7 @@
                     "3prev_dones",
                     "4current_state"
                 ],
-                "rgb": [
-                ],
+                "rgb": [],
                 "depth": [],
                 "scan": []
             },

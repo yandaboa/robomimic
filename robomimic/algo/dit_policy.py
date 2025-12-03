@@ -175,12 +175,15 @@ class DiTPolicyUNet(PolicyAlgo):
         next_done = next_done.masked_fill(next_done.eq(0), T-1)
 
         # Zero-out actions that cross the done boundary
-        boundary = next_done.unsqueeze(-1)                            # (B,T,1)
-        mask = idxs > boundary                                        # (B,T,Tp)
+        boundary = next_done.unsqueeze(-1)                            # (B,T,1,1)
+        mask = idxs.unsqueeze(-1) > boundary                          # (B,T,Tp, 1)
+
+        # clamp all idxs to be within valid lengths
+        idxs = idxs.clamp(max=lengths.unsqueeze(-1).unsqueeze(-1) - 1)
 
         inp = actions.unsqueeze(2).expand(B, T, Tp, Da)
         chunked_actions = inp.gather(dim=1, index=idxs.unsqueeze(-1).expand(B, T, Tp, Da))
-        chunked_actions = chunked_actions.masked_fill(mask.unsqueeze(-1), 0)
+        chunked_actions = chunked_actions.masked_fill(mask, 0)
         return chunked_actions
 
     def process_batch_for_training(self, batch):

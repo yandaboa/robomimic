@@ -1,7 +1,7 @@
 {
     "algo_name": "dit_policy",
     "experiment": {
-        "name": "full_4_step_0.05_0.25_0.25_5_correctloss",
+        "name": "improver_sriyash_configs",
         "validate": true,
         "logging": {
             "terminal_output_to_txt": true,
@@ -38,21 +38,17 @@
         "ckpt_path": null
     },
     "train": {
-        "data": [
-            {
-                "path": "/home/user/yanda/lti/OctiLab/source/metalearning/metalearning/model/data/4step_0.05_0.25_0.25_5/robomimic/data.hdf5"
-            }
-        ],
+        "data": null,
         "output_dir": "../dit_policy_trained_models",
         "normalize_weights_by_ds_size": false,
-        "num_data_workers": 48,
+        "num_data_workers": 32,
         "hdf5_cache_mode": "all",
         "hdf5_use_swmr": true,
         "hdf5_load_next_obs": false,
         "hdf5_normalize_obs": false,
         "hdf5_filter_key": "train",
         "hdf5_validation_filter_key": "val",
-        "seq_length": 500,
+        "seq_length": 300,
         "pad_seq_length": false,
         "frame_stack": 1,
         "pad_frame_stack": false,
@@ -92,9 +88,7 @@
                 },
                 "regularization": {
                     "L2": 1e-06
-                },
-                "num_train_batches": 100,
-                "num_epochs": 500
+                }
             }
         },
         "horizon": {
@@ -137,7 +131,7 @@
         },
         "transformer": {
             "enabled": true,
-            "context_length": 500,
+            "context_length": 300,
             "embed_dim": 256,
             "num_layers": 4,
             "num_heads": 4,
