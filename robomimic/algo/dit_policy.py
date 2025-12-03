@@ -140,13 +140,15 @@ class DiTPolicyUNet(PolicyAlgo):
         self.obs_queue = None
         self.action_queue = None
     
-    def chunk_actions(self, actions, attention_mask):
+    def chunk_actions(self, actions, attention_mask, dones):
         """
         Convert actions from shape [B, T, Da] to [B, T, Tp, Da]
         where Tp is the prediction horizon.
 
         Args:
             actions (torch.Tensor): actions of shape [B, T, Da]
+            attention_mask (torch.Tensor): attention mask of shape [B, T]
+            dones (torch.Tensor): dones of shape [B, T]
         Returns:
             chunked_actions (torch.Tensor): actions of shape [B, T, Tp, Da]
         """
@@ -156,11 +158,29 @@ class DiTPolicyUNet(PolicyAlgo):
         start = torch.arange(T,  device=actions.device).view(1,T,1)    # (1,T,1)
         idxs   = (start + base).expand(B, -1, -1) # (B,T,Tp)
         lengths = attention_mask.sum(dim=1).long()  # [B]
-        # clamp idxs to be within valid lengths
-        for b in range(B):
-            idxs[b] = torch.clamp(idxs[b], max=lengths[b]-1)
+
+        # Compute per-timestep episode boundaries
+        # done_positions[b, t] = index of NEXT done at or after t (else last step)
+        done_mask = dones.bool()                                      # (B,T)
+        done_idx = torch.arange(T, device=actions.device).view(1,T)   # (1,T)
+        done_idx = done_idx.repeat(B,1).unsqueeze(-1) * done_mask                   # (B,T)
+        # Reverse so we propagate backwards
+        rev_done = torch.flip(done_idx, dims=(1,))
+        # cumulative max spreads the last nonzero "done index" forward
+        rev_cum, _ = torch.cummax(rev_done, dim=1)
+        next_done = torch.flip(rev_cum, dims=(1,))
+
+        # For sequences with no done at all: fix by setting end=T-1
+        # no_done_mask = next_done.eq(0).all(dim=1, keepdim=True)       # (B,1)  We need to get dones in here properly...
+        next_done = next_done.masked_fill(next_done.eq(0), T-1)
+
+        # Zero-out actions that cross the done boundary
+        boundary = next_done.unsqueeze(-1)                            # (B,T,1)
+        mask = idxs > boundary                                        # (B,T,Tp)
+
         inp = actions.unsqueeze(2).expand(B, T, Tp, Da)
         chunked_actions = inp.gather(dim=1, index=idxs.unsqueeze(-1).expand(B, T, Tp, Da))
+        chunked_actions = chunked_actions.masked_fill(mask.unsqueeze(-1), 0)
         return chunked_actions
 
     def process_batch_for_training(self, batch):
@@ -186,7 +206,7 @@ class DiTPolicyUNet(PolicyAlgo):
         input_batch = dict()
         input_batch["obs"] = batch["obs"] # B x T x (xyz)
         input_batch["actions"] = self.chunk_actions(
-            batch["actions"], batch["attention_mask"])
+            batch["actions"], batch["attention_mask"], batch["dones"])
         input_batch["attention_mask"] = batch["attention_mask"]
         
         # check if actions are normalized to [-1,1]
